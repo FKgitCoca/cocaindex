@@ -1,7 +1,7 @@
 
 ## 效果预览
 
-**[在线预览 &rarr;](https://nagexiaochengzi.github.io/)**
+**[在线预览 &rarr;](https://fkgitcoca.github.io/cocaindex/)**
 ## Fork 指南
 1. 正确设置项目名称与分支。
 

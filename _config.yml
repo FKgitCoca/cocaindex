@@ -2,7 +2,7 @@
 #   Main Configs   #
 # ---------------- #
 baseurl: 
-url: https://nagexiaochengzi.github.io
+url: https://fkgitcoca.github.io/cocaindex/
 date_format: "ordinal"
 title: 博客主页
 subtitle: "苗佳哲"
@@ -13,7 +13,7 @@ encoding: "utf-8"
 # 页面左下角显示的年份
 since: 2025
 # 源码仓库，请替换成自己的
-repository: nagexiaochengzi/nagexiaochengzi.github.io
+
 # 对 css 和 js 资源的 cdn 加速配置
 cdn:
     jsdelivr:
@@ -60,7 +60,7 @@ organization:
 organization_url: 
 github_username: nagexiaochengzi
 location1: 武汉市，华中科技大学，计算机科学与技术学院，2025级博士生（苗佳哲） 
-location2: 北京市，北京科技大学，能源与环境工程学院，2025级博士生（肖美美）
+
 email: mmjz1314@gmail.com
 
 # ---------------- #
