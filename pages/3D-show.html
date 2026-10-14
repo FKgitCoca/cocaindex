@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>自适应网格</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #333;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 12px 24px;
+            border-radius: 40px;
+            pointer-events: none;
+            z-index: 1000;
+            font-size: 14px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        #upload-container {
+            position: absolute;
+            top: 90px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 12px;
+        }
+        .upload-btn {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            color: #222;
+            border: 1px solid #0077ff;
+            padding: 14px 28px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: auto;
+        }
+        .upload-btn:hover {
+            background: white;
+            border-color: #0055cc;
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 119, 255, 0.2);
+        }
+        .upload-btn input {
+            position: absolute;
+            opacity: 0;
+            width: 0.1px;
+            height: 0.1px;
+        }
+        #main-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: grid;
+            gap: 4px;
+            padding: 4px;
+            box-sizing: border-box;
+            background: #f0f0f0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+        }
+        
+        .model-card {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        /* 全屏模式下的卡片样式 */
+        .model-card.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2000;
+            border-radius: 0;
+            cursor: default;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            transform: scale(1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* 非全屏卡片在全屏模式下的样式 */
+        body.has-fullscreen .model-card:not(.fullscreen) {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.8);
+        }
+        
+        .model-header {
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            pointer-events: none;
+            flex-shrink: 0;
+        }
+        .model-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .model-number {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+        }
+        .close-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: 0.2s;
+            pointer-events: auto;
+        }
+        .close-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #ffffff;
+            overflow: hidden;
+            min-height: 0;
+            pointer-events: auto; /* 确保canvas区域可以接收鼠标事件 */
+        }
+        .model-controls {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(255,255,255,0.9);
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 10px;
+            color: #666;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        .smooth-toggle {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: white;
+            border: 1px solid #28a745;
+            color: #28a745;
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            z-index: 10;
+            pointer-events: auto;
+        }
+        .smooth-toggle.active {
+            background: #28a745;
+            color: white;
+        }
+        .fix-normals-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: white;
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 9px;
+            cursor: pointer;
+            transition: 0.2s;
+            z-index: 10;
+            pointer-events: auto;
+        }
+        .fix-normals-btn:hover {
+            background: #dc3545;
+            color: white;
+        }
+        .fullscreen-indicator {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            z-index: 20;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .model-card.fullscreen .fullscreen-indicator {
+            opacity: 1;
+        }
+        
+        /* 退出全屏按钮 - 只在全屏模式下显示，并且不会冒泡 */
+        .exit-fullscreen-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 2500;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .exit-fullscreen-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .exit-fullscreen-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.05);
+        }
+        
+        /* 遮罩层 - 防止点击全屏卡片空白区域退出 */
+        .fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: transparent;
+            z-index: 1999;
+            pointer-events: none;
+            display: none;
+        }
+        
+        body.has-fullscreen .fullscreen-overlay {
+            display: block;
+            pointer-events: auto;
+        }
+        
+        #empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #999;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #empty-state h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        /* 网格列数自适应 */
+        #main-container {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-auto-rows: 1fr;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+       点击卡片全屏 | 点击退出按钮返回网格
+    </div>
+    
+    <div id="upload-container">
+        <label for="file-input" class="upload-btn">
+            <span>📁 上传新模型 (+)</span>
+            <input type="file" id="file-input" accept=".gltf,.glb,.obj,.stl" multiple>
+        </label>
+    </div>
+
+    <button id="exit-fullscreen-btn" class="exit-fullscreen-btn">
+        <span>✕</span> 退出全屏
+    </button>
+
+    <!-- 遮罩层，用于拦截全屏卡片的点击事件 -->
+    <div class="fullscreen-overlay" id="fullscreen-overlay"></div>
+
+    <div id="main-container">
+        <!-- 模型卡片会动态添加到这里 -->
+    </div>
+
+    <div id="empty-state">
+        <h2>点击上传模型</h2>
+        <p>支持格式: glTF, GLB, OBJ</p>
+    </div>
+
+    <!-- 引入 Three.js 核心库和加载器、控制器 -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+
+        // 模型计数器
+        let modelCounter = 0;
+        
+        // 存储所有模型实例的信息
+        const models = new Map();
+
+        // 当前全屏显示的模型ID
+        let currentFullscreenId = null;
+
+        // 获取容器元素
+        const mainContainer = document.getElementById('main-container');
+        const emptyState = document.getElementById('empty-state');
+        const exitFullscreenBtn = document.getElementById('exit-fullscreen-btn');
+        const fullscreenOverlay = document.getElementById('fullscreen-overlay');
+        const body = document.body;
+
+        // 更新空状态显示
+        function updateEmptyState() {
+            if (models.size === 0) {
+                emptyState.style.display = 'block';
+                exitFullscreenBtn.classList.remove('visible');
+                body.classList.remove('has-fullscreen');
+                currentFullscreenId = null;
+            } else {
+                emptyState.style.display = 'none';
+            }
+            
+            // 更新网格列数
+            updateGridLayout();
+        }
+
+        // 更新网格布局
+        function updateGridLayout() {
+            const count = models.size;
+            if (count === 0) return;
+            
+            // 计算最佳的列数 (尽可能接近正方形)
+            let cols = Math.ceil(Math.sqrt(count));
+            let rows = Math.ceil(count / cols);
+            
+            // 确保所有卡片都能显示
+            while (cols * rows < count) {
+                rows++;
+            }
+            
+            mainContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            mainContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+        }
+
+        // 设置全屏模型
+        function setFullscreenModel(modelId) {
+            if (currentFullscreenId === modelId) return;
+            
+            // 移除所有卡片的fullscreen类
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.classList.remove('fullscreen');
+            });
+            
+            // 给当前卡片添加fullscreen类
+            const targetCard = document.getElementById(modelId);
+            if (targetCard) {
+                targetCard.classList.add('fullscreen');
+                currentFullscreenId = modelId;
+                body.classList.add('has-fullscreen');
+                exitFullscreenBtn.classList.add('visible');
+            }
+        }
+
+        // 退出全屏
+        function exitFullscreen() {
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.classList.remove('fullscreen');
+            });
+            currentFullscreenId = null;
+            body.classList.remove('has-fullscreen');
+            exitFullscreenBtn.classList.remove('visible');
+        }
+
+        // 退出全屏按钮点击事件
+        exitFullscreenBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exitFullscreen();
+        });
+
+        // 遮罩层点击事件 - 也用于退出全屏
+        fullscreenOverlay.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exitFullscreen();
+        });
+
+        // 创建新的模型卡片和对应的Three.js场景
+        function createModelCard(file, initialSmooth = true) {
+            modelCounter++;
+            const modelId = `model-${modelCounter}`;
+            const fileName = file.name;
+            
+            // 创建卡片容器
+            const card = document.createElement('div');
+            card.className = 'model-card';
+            card.id = modelId;
+            
+            // 添加全屏指示器
+            const fullscreenIndicator = document.createElement('div');
+            fullscreenIndicator.className = 'fullscreen-indicator';
+            fullscreenIndicator.textContent = '🔍 全屏模式';
+            
+            // 创建头部
+            const header = document.createElement('div');
+            header.className = 'model-header';
+            header.innerHTML = `
+                <div class="model-title">
+                    <span class="model-number">#${modelCounter}</span>
+                    <span>${fileName.length > 25 ? fileName.substring(0, 22) + '...' : fileName}</span>
+                </div>
+                <button class="close-btn" title="关闭模型">×</button>
+            `;
+            
+            // 创建canvas容器
+            const canvasContainer = document.createElement('div');
+            canvasContainer.className = 'canvas-container';
+            
+            // 创建控制按钮
+            const smoothToggle = document.createElement('button');
+            smoothToggle.className = `smooth-toggle ${initialSmooth ? 'active' : ''}`;
+            smoothToggle.textContent = initialSmooth ? '✨ 平滑' : '✨ 硬边';
+            
+            const fixNormalsBtn = document.createElement('button');
+            fixNormalsBtn.className = 'fix-normals-btn';
+            fixNormalsBtn.textContent = '🔧 修复法线';
+            
+            const controlsNote = document.createElement('div');
+            controlsNote.className = 'model-controls';
+            controlsNote.textContent = '🖱️ 旋转/缩放';
+            
+            // 组装卡片
+            canvasContainer.appendChild(smoothToggle);
+            canvasContainer.appendChild(fixNormalsBtn);
+            canvasContainer.appendChild(controlsNote);
+            canvasContainer.appendChild(fullscreenIndicator);
+            card.appendChild(header);
+            card.appendChild(canvasContainer);
+            
+            // 添加到主容器
+            mainContainer.appendChild(card);
+            
+            // 点击卡片切换全屏 - 但只在非全屏模式下生效
+            card.addEventListener('click', (e) => {
+                // 如果点击的是按钮，不触发全屏切换
+                if (e.target.classList.contains('close-btn') || 
+                    e.target.classList.contains('smooth-toggle') || 
+                    e.target.classList.contains('fix-normals-btn') ||
+                    e.target.classList.contains('exit-fullscreen-btn')) {
+                    return;
+                }
+                
+                // 如果当前有全屏模型，则忽略卡片的点击（由遮罩层处理退出）
+                if (body.classList.contains('has-fullscreen')) {
+                    return;
+                }
+                
+                // 否则进入全屏
+                setFullscreenModel(modelId);
+            });
+            
+            // 初始化Three.js场景
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff);
+            
+            // 添加雾效
+            scene.fog = new THREE.Fog(0xffffff, 5, 25);
+            
+            // 创建相机
+            const camera = new THREE.PerspectiveCamera(45, canvasContainer.clientWidth / canvasContainer.clientHeight, 0.1, 1000);
+            camera.position.set(3, 2, 5);
+            
+            // 创建渲染器
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            canvasContainer.appendChild(renderer.domElement);
+            
+            // 创建轨道控制器
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.autoRotate = false;
+            controls.enableZoom = true;
+            controls.maxPolarAngle = Math.PI / 2;
+            controls.target.set(0, 0.5, 0);
+            
+            // 添加光源
+            // 环境光
+            const ambientLight = new THREE.AmbientLight(0x808080);
+            scene.add(ambientLight);
+            
+            // 主方向光
+            const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+            dirLight.position.set(3, 8, 4);
+            dirLight.castShadow = true;
+            dirLight.receiveShadow = true;
+            scene.add(dirLight);
+            
+            // 添加多个点光源
+            const lightPositions = [
+                [5, 5, 5], [-5, 5, 5], [5, 5, -5], [-5, 5, -5],
+                [0, 8, 0], [3, 2, 3], [-3, 2, -3]
+            ];
+            
+            lightPositions.forEach(pos => {
+                const light = new THREE.PointLight(0xffffff, 0.4);
+                light.position.set(pos[0], pos[1], pos[2]);
+                scene.add(light);
+            });
+            
+            // 添加地面反射平面
+            const planeGeometry = new THREE.CircleGeometry(8, 32);
+            const planeMaterial = new THREE.MeshStandardMaterial({
+                color: 0xeeeeee,
+                roughness: 0.7,
+                metalness: 0.1,
+                transparent: true,
+                opacity: 0.2,
+                side: THREE.DoubleSide
+            });
+            const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+            plane.rotation.x = -Math.PI / 2;
+            plane.position.y = -0.5;
+            plane.receiveShadow = true;
+            scene.add(plane);
+            
+            // 添加网格辅助
+            const gridHelper = new THREE.GridHelper(10, 20, 0x888888, 0xcccccc);
+            gridHelper.position.y = -0.49;
+            gridHelper.material.opacity = 0.2;
+            gridHelper.material.transparent = true;
+            scene.add(gridHelper);
+            
+            // 存储模型相关的所有对象
+            const modelData = {
+                id: modelId,
+                card,
+                canvasContainer,
+                scene,
+                camera,
+                renderer,
+                controls,
+                model: null,
+                fileName,
+                smoothEnabled: initialSmooth,
+                animationId: null
+            };
+            
+            models.set(modelId, modelData);
+            
+            // 设置平滑切换功能
+            smoothToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                modelData.smoothEnabled = !modelData.smoothEnabled;
+                smoothToggle.classList.toggle('active', modelData.smoothEnabled);
+                smoothToggle.textContent = modelData.smoothEnabled ? '✨ 平滑' : '✨ 硬边';
+                
+                if (modelData.model) {
+                    setFlatShadingForModel(modelData.model, !modelData.smoothEnabled);
+                }
+            });
+            
+            // 设置法线修复功能
+            fixNormalsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (modelData.model) {
+                    fixModelNormals(modelData.model);
+                    setFlatShadingForModel(modelData.model, !modelData.smoothEnabled);
+                }
+            });
+            
+            // 关闭按钮功能
+            const closeBtn = header.querySelector('.close-btn');
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // 如果关闭的是当前全屏的模型，退出全屏
+                if (currentFullscreenId === modelId) {
+                    exitFullscreen();
+                }
+                
+                // 停止动画
+                if (modelData.animationId) {
+                    cancelAnimationFrame(modelData.animationId);
+                }
+                
+                // 清理资源
+                if (modelData.model) {
+                    modelData.model.traverse((node) => {
+                        if (node.geometry) node.geometry.dispose();
+                        if (node.material) {
+                            if (Array.isArray(node.material)) {
+                                node.material.forEach(m => m.dispose());
+                            } else {
+                                node.material.dispose();
+                            }
+                        }
+                    });
+                }
+                
+                // 从DOM移除
+                card.remove();
+                
+                // 从Map中删除
+                models.delete(modelId);
+                
+                // 更新网格布局
+                updateGridLayout();
+                
+                // 如果还有模型，保持当前状态
+                if (models.size === 0) {
+                    updateEmptyState();
+                }
+            });
+            
+            // 启动动画循环
+            function animate() {
+                if (!models.has(modelId)) return;
+                
+                const data = models.get(modelId);
+                if (data && data.controls) {
+                    data.controls.update();
+                    data.renderer.render(data.scene, data.camera);
+                }
+                
+                data.animationId = requestAnimationFrame(animate);
+            }
+            
+            animate();
+            
+            // 处理窗口大小变化
+            const resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    if (entry.target === canvasContainer) {
+                        const width = entry.contentRect.width;
+                        const height = entry.contentRect.height;
+                        
+                        if (width > 0 && height > 0) {
+                            modelData.camera.aspect = width / height;
+                            modelData.camera.updateProjectionMatrix();
+                            modelData.renderer.setSize(width, height);
+                        }
+                    }
+                }
+            });
+            
+            resizeObserver.observe(canvasContainer);
+            
+            // 加载模型
+            loadModel(file, modelData);
+            
+            updateGridLayout();
+            updateEmptyState();
+            
+            return modelId;
+        }
+
+        // 设置模型的flatShading
+        function setFlatShadingForModel(model, flatShading) {
+            model.traverse((node) => {
+                if (node.isMesh) {
+                    if (node.material) {
+                        if (Array.isArray(node.material)) {
+                            node.material.forEach(mat => {
+                                if (mat.flatShading !== undefined) {
+                                    mat.flatShading = flatShading;
+                                    mat.needsUpdate = true;
+                                }
+                            });
+                        } else {
+                            if (node.material.flatShading !== undefined) {
+                                node.material.flatShading = flatShading;
+                                node.material.needsUpdate = true;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 修复模型法线
+        function fixModelNormals(model) {
+            model.traverse((node) => {
+                if (node.isMesh && node.geometry) {
+                    try {
+                        node.geometry.computeVertexNormals();
+                        if (node.geometry.attributes.normal) {
+                            node.geometry.attributes.normal.needsUpdate = true;
+                        }
+                    } catch (e) {
+                        console.warn('修复法线失败:', e);
+                    }
+                }
+            });
+        }
+
+        // 加载模型文件
+        function loadModel(file, modelData) {
+            const fileName = file.name.toLowerCase();
+            
+            if (fileName.endsWith('.gltf') || fileName.endsWith('.glb')) {
+                loadGLTF(file, modelData);
+            } else if (fileName.endsWith('.obj')) {
+                loadOBJ(file, modelData);
+            } else {
+                alert(`不支持的文件格式: ${file.name}`);
+                document.getElementById(modelData.id).querySelector('.close-btn').click();
+            }
+        }
+
+        function loadGLTF(file, modelData) {
+            const loader = new GLTFLoader();
+            const url = URL.createObjectURL(file);
+            
+            loader.load(url, (gltf) => {
+                const model = gltf.scene;
+                
+                fixModelNormals(model);
+                setupModelPosition(model, modelData);
+                
+                modelData.scene.add(model);
+                modelData.model = model;
+                
+                setFlatShadingForModel(model, !modelData.smoothEnabled);
+                
+                URL.revokeObjectURL(url);
+            }, (xhr) => {
+                // 进度
+            }, (error) => {
+                console.error('GLTF加载错误:', error);
+                alert(`模型加载失败: ${file.name}`);
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function loadOBJ(file, modelData) {
+            const loader = new OBJLoader();
+            const url = URL.createObjectURL(file);
+            
+            loader.load(url, (obj) => {
+                obj.traverse((node) => {
+                    if (node.isMesh) {
+                        if (!node.material) {
+                            node.material = new THREE.MeshStandardMaterial({
+                                color: 0xcccccc
+                            });
+                        }
+                    }
+                });
+                
+                fixModelNormals(obj);
+                setupModelPosition(obj, modelData);
+                
+                modelData.scene.add(obj);
+                modelData.model = obj;
+                
+                setFlatShadingForModel(obj, !modelData.smoothEnabled);
+                
+                URL.revokeObjectURL(url);
+            }, undefined, (error) => {
+                console.error('OBJ加载错误:', error);
+                alert(`模型加载失败: ${file.name}`);
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        // 调整模型大小和位置
+        function setupModelPosition(model, modelData) {
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const targetScale = 2.0 / maxDim;
+            model.scale.setScalar(targetScale);
+            
+            box.setFromObject(model);
+            const newCenter = box.getCenter(new THREE.Vector3());
+            
+            model.position.copy(new THREE.Vector3(0, 0.5, 0)).sub(newCenter);
+            
+            model.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+        }
+
+        // 文件上传处理
+        const fileInput = document.getElementById('file-input');
+        
+        fileInput.addEventListener('change', (event) => {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+            
+            // 为每个文件创建卡片
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileName = file.name.toLowerCase();
+                if (fileName.endsWith('.gltf') || fileName.endsWith('.glb') || fileName.endsWith('.obj')) {
+                    createModelCard(file, true);
+                } else {
+                    alert(`不支持的文件格式: ${file.name}`);
+                }
+            }
+            
+            fileInput.value = '';
+        });
+
+        // 初始显示空状态
+        updateEmptyState();
+
+        console.log('自适应网格页面已初始化 - 修复旋转误退出');
+    </script>
+</body>
+</html>
