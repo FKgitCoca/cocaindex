@@ -2,7 +2,8 @@
 #   Main Configs   #
 # ---------------- #
 baseurl: 
-url: https://fkgitcoca.github.io/cocaindex/
+# 当前主题直接用 site.url 拼接站内路径，因此这里保留项目名、不加末尾斜杠。
+url: https://fkgitcoca.github.io/cocaindex
 date_format: "ordinal"
 title: 博客主页
 subtitle: "苗佳哲"
@@ -13,11 +14,12 @@ encoding: "utf-8"
 # 页面左下角显示的年份
 since: 2025
 # 源码仓库，请替换成自己的
-
+repository: FKgitCoca/cocaindex
 # 对 css 和 js 资源的 cdn 加速配置
 cdn:
     jsdelivr:
-        enabled: true
+        # CSS/JS 从本站加载，避免 CDN 仓库名或分支不匹配导致样式丢失。
+        enabled: false
 # 可选组件配置
 components:
     # 分享
@@ -60,7 +62,6 @@ organization:
 organization_url: 
 github_username: nagexiaochengzi
 location1: 武汉市，华中科技大学，计算机科学与技术学院，2025级博士生（苗佳哲） 
-repository: 
 email: mmjz1314@gmail.com
 
 # ---------------- #
